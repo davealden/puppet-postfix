@@ -12,6 +12,7 @@ class postfix::files {
   $master_submission   = $postfix::master_submission
   $myorigin            = $postfix::myorigin
   $manage_root_alias   = $postfix::manage_root_alias
+  $relayhost           = $postfix::relayhost
   $root_mail_recipient = $postfix::root_mail_recipient
   $smtp_listen         = $postfix::_smtp_listen
   $use_amavisd         = $postfix::use_amavisd
@@ -85,6 +86,12 @@ class postfix::files {
     'alias_maps':       value => $alias_maps;
     'inet_interfaces':  value => $inet_interfaces;
     'myorigin':         value => $myorigin;
+  }
+
+  if $relayhost {
+    ::postfix::config {
+      'relayhost': value => $relayhost;
+    }
   }
 
   case $::osfamily {
