@@ -3,6 +3,7 @@ class postfix::files {
 
   $alias_maps          = $postfix::all_alias_maps
   $inet_interfaces     = $postfix::inet_interfaces
+  $inet_protocols      = $postfix::inet_protocols
   $mail_user           = $postfix::mail_user
   $manage_conffiles    = $postfix::manage_conffiles
   $maincf_source       = $postfix::maincf_source
@@ -10,19 +11,28 @@ class postfix::files {
   $master_smtp         = $postfix::master_smtp
   $master_smtps        = $postfix::master_smtps
   $master_submission   = $postfix::master_submission
+  $master_entries      = $postfix::master_entries
+  $master_bounce_command = $postfix::master_bounce_command
+  $master_defer_command  = $postfix::master_defer_command
   $myorigin            = $postfix::myorigin
   $manage_root_alias   = $postfix::manage_root_alias
   $relayhost           = $postfix::relayhost
   $root_mail_recipient = $postfix::root_mail_recipient
+  $chroot              = $postfix::chroot
   $smtp_listen         = $postfix::_smtp_listen
   $use_amavisd         = $postfix::use_amavisd
   $use_dovecot_lda     = $postfix::use_dovecot_lda
   $use_schleuder       = $postfix::use_schleuder
   $use_sympa           = $postfix::use_sympa
 
-  validate_string($mastercf_source)
-  validate_string($master_smtp)
-  validate_string($master_smtps)
+  assert_type(Optional[String], $mastercf_source)
+  assert_type(Optional[String], $master_smtp)
+  assert_type(Optional[String], $master_smtps)
+
+  $jail = $chroot ? {
+    true    => 'y',
+    default => 'n',
+  }
 
   File {
     replace => $manage_conffiles,
@@ -44,21 +54,14 @@ class postfix::files {
     seltype => $postfix::params::aliasesseltype,
   }
 
-  # Aliases
-  exec { 'newaliases':
-    command     => '/usr/bin/newaliases',
-    refreshonly => true,
-    subscribe   => File['/etc/aliases'],
-  }
-
   # Config files
   if $mastercf_source {
     $mastercf_content = undef
   } else {
     $mastercf_content = template(
-        $postfix::params::master_os_template,
-        'postfix/master.cf.common.erb'
-      )
+      $postfix::params::master_os_template,
+      'postfix/master.cf.common.erb'
+    )
   }
 
   file { '/etc/postfix/master.cf':
@@ -85,6 +88,7 @@ class postfix::files {
   ::postfix::config {
     'alias_maps':       value => $alias_maps;
     'inet_interfaces':  value => $inet_interfaces;
+    'inet_protocols':   value => $inet_protocols;
     'myorigin':         value => $myorigin;
   }
 
@@ -94,7 +98,7 @@ class postfix::files {
     }
   }
 
-  case $::osfamily {
+  case $facts['os']['family'] {
     'RedHat': {
       ::postfix::config {
         'mailq_path':       value => '/usr/bin/mailq.postfix';
@@ -106,9 +110,8 @@ class postfix::files {
   }
 
   if $manage_root_alias {
-    mailalias {'root':
+    postfix::mailalias {'root':
       recipient => $root_mail_recipient,
-      notify    => Exec['newaliases'],
     }
   }
 

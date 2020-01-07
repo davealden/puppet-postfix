@@ -11,7 +11,8 @@
 # [*source*] - file source.
 # [*type*]   - type of the postfix map (valid values are cidr, pcre, hash...)
 # [*path*]   - path of the created file. By default it is placed in the
-#              postfix directory
+#              postfix directory.
+# [*mode*]   - mode of the created file. By default it is '0640'.
 #
 # === Requires
 #
@@ -27,19 +28,14 @@
 #   }
 #
 define postfix::map (
-  $ensure = 'present',
-  $source = undef,
-  $content = undef,
-  $type = 'hash',
-  $path = "/etc/postfix/${name}",
+  Enum['present', 'absent']             $ensure = 'present',
+  Variant[Array[String], String, Undef] $source = undef,
+  Optional[Variant[Sensitive[String],String]] $content = undef,
+  String                                $type = 'hash',
+  Stdlib::Absolutepath                  $path = "/etc/postfix/${name}",
+  String[4,4]                           $mode = '0640'
 ) {
   include ::postfix::params
-
-  validate_absolute_path($path)
-  if !is_string($source) and !is_array($source) { fail("value for source should be either String type or Array type got ${source}") }
-  if !is_string($content) and !is_array($content) { fail("value for source should be either String type or Array type got ${content}") }
-  validate_re($ensure, ['present', 'absent'],
-    "\$ensure must be either 'present' or 'absent', got '${ensure}'")
 
   if (!defined(Class['postfix'])) {
     fail 'You must define class postfix before using postfix::config!'
@@ -53,7 +49,11 @@ define postfix::map (
   if $type =~ /^(cidr|pcre)$/ {
     $manage_notify = Service['postfix']
   } else {
-    $manage_notify = Exec["generate ${name}.db"]
+    if $ensure == 'present' {
+      $manage_notify = Exec["generate ${name}.db"]
+    } else {
+      $manage_notify = undef
+    }
   }
 
   file { "postfix map ${name}":
@@ -63,7 +63,7 @@ define postfix::map (
     content => $content,
     owner   => 'root',
     group   => 'postfix',
-    mode    => '0644',
+    mode    => $mode,
     require => Package['postfix'],
     notify  => $manage_notify,
   }
@@ -74,8 +74,9 @@ define postfix::map (
       path    => "${path}.db",
       owner   => 'root',
       group   => 'postfix',
-      mode    => '0644',
-      require => [File["postfix map ${name}"], Exec["generate ${name}.db"]],
+      mode    => $mode,
+      require => File["postfix map ${name}"],
+      notify  => $manage_notify,
     }
   }
 

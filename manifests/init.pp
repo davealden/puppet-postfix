@@ -8,7 +8,11 @@
 #
 # [*alias_maps*]          - (string)
 #
+# [*configs*]             - (hash)
+#
 # [*inet_interfaces*]     - (string)
+#
+# [*inet_protocols*]      - (string)
 #
 # [*ldap*]                - (boolean) Whether to use LDAP
 #
@@ -36,6 +40,12 @@
 #
 # [*master_submission*]   - (string)
 #
+# [*master_entries*]      - (array of strings)
+#
+# [*master_bounce_command*] - (string)
+#
+# [*master_defer_command*]  - (string)
+#
 # [*mta*]                 - (boolean) Configure postfix minimally, as a simple MTA
 #
 # [*mydestination*]       - (string)
@@ -48,6 +58,8 @@
 #
 # [*root_mail_recipient*] - (string)
 #
+# [*chroot*]              - (undef/boolean) Whether postfix should be run in a chroot
+#
 # [*satellite*]           - (boolean) Whether to use as a satellite
 #                           (implies MTA)
 #
@@ -57,7 +69,8 @@
 #
 # [*use_dovecot_lda*]     - (boolean) Whether to setup for Dovecot LDA
 #
-# [*use_schleuder*]       - (boolean) Whether to setup for Schleuder
+# [*use_schleuder*]       - (2/boolean) Whether to setup for Schleuder
+#                           (2 -> Schleuder 2, 3 or true -> Schleuder 3)
 #
 # [*use_sympa*]           - (boolean) Whether to setup for Sympa
 #
@@ -72,63 +85,45 @@
 #   }
 #
 class postfix (
-  $alias_maps          = 'hash:/etc/aliases',
-  $inet_interfaces     = 'all',
-  $ldap                = false,
-  $ldap_base           = undef,
-  $ldap_host           = undef,
-  $ldap_options        = undef,
-  $mail_user           = 'vmail',       # postfix_mail_user
-  $mailman             = false,
-  $maincf_source       = "puppet:///modules/${module_name}/main.cf",
-  $manage_conffiles    = true,
-  $manage_mailx        = true,
-  $mastercf_source     = undef,
-  $master_smtp         = undef,         # postfix_master_smtp
-  $master_smtps        = undef,         # postfix_master_smtps
-  $master_submission   = undef,         # postfix_master_submission
-  $mta                 = false,
-  $mydestination       = '$myorigin',   # postfix_mydestination
-  $mynetworks          = '127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128', # postfix_mynetworks
-  $myorigin            = $::fqdn,
-  $relayhost           = undef,         # postfix_relayhost
-  $manage_root_alias   = true,
-  $root_mail_recipient = 'nobody',      # root_mail_recipient
-  $satellite           = false,
-  $smtp_listen         = '127.0.0.1',   # postfix_smtp_listen
-  $use_amavisd         = false,         # postfix_use_amavisd
-  $use_dovecot_lda     = false,         # postfix_use_dovecot_lda
-  $use_schleuder       = false,         # postfix_use_schleuder
-  $use_sympa           = false,         # postfix_use_sympa
-  $postfix_ensure      = 'present',
-  $mailx_ensure        = 'present',
+  String                          $alias_maps          = 'hash:/etc/aliases',
+  Optional[Hash]                  $configs             = {},
+  String                          $inet_interfaces     = 'all',
+  String                          $inet_protocols      = 'all',
+  Boolean                         $ldap                = false,
+  Optional[String]                $ldap_base           = undef,
+  Optional[String]                $ldap_host           = undef,
+  Optional[String]                $ldap_options        = undef,
+  String                          $mail_user           = 'vmail',       # postfix_mail_user
+  Boolean                         $mailman             = false,
+  String                          $maincf_source       = "puppet:///modules/${module_name}/main.cf",
+  Boolean                         $manage_conffiles    = true,
+  Boolean                         $manage_mailx        = true,
+  Optional[String]                $mastercf_source     = undef,
+  Optional[String]                $master_smtp         = undef,         # postfix_master_smtp
+  Optional[String]                $master_smtps        = undef,         # postfix_master_smtps
+  Optional[String]                $master_submission   = undef,         # postfix_master_submission
+  Optional[Array[String]]         $master_entries      = undef,         # postfix_master_entries
+  String                          $master_bounce_command = 'bounce',
+  String                          $master_defer_command  = 'bounce',
+  Boolean                         $mta                 = false,
+  String                          $mydestination       = '$myorigin',   # postfix_mydestination
+  String                          $mynetworks          = '127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128', # postfix_mynetworks
+  String                          $myorigin            = $::fqdn,
+  Optional[String]                $relayhost           = undef,         # postfix_relayhost
+  Boolean                         $manage_root_alias   = true,
+  Variant[Array[String], String]  $root_mail_recipient = 'nobody',      # root_mail_recipient
+  Optional[Boolean]               $chroot              = undef,
+  Boolean                         $satellite           = false,
+  String                          $smtp_listen         = '127.0.0.1',   # postfix_smtp_listen
+  Boolean                         $use_amavisd         = false,         # postfix_use_amavisd
+  Boolean                         $use_dovecot_lda     = false,         # postfix_use_dovecot_lda
+  Variant[Integer[2, 3], Boolean] $use_schleuder       = false,         # postfix_use_schleuder
+  Boolean                         $use_sympa           = false,         # postfix_use_sympa
+  String                          $postfix_ensure      = 'present',
+  String                          $mailx_ensure        = 'present',
+  String                          $service_ensure      = 'running',
+  Boolean                         $service_enabled     =  true,
 ) inherits postfix::params {
-
-
-  validate_bool($ldap)
-  validate_bool($mailman)
-  validate_bool($mta)
-  validate_bool($manage_root_alias)
-  validate_bool($manage_mailx)
-  validate_bool($satellite)
-  validate_bool($use_amavisd)
-  validate_bool($use_dovecot_lda)
-  validate_bool($use_schleuder)
-  validate_bool($use_sympa)
-
-  validate_string($alias_maps)
-  validate_string($inet_interfaces)
-  validate_string($mail_user)
-  validate_string($mydestination)
-  validate_string($mynetworks)
-  validate_string($myorigin)
-  validate_string($relayhost)
-  if ! is_array($root_mail_recipient) {
-    validate_string($root_mail_recipient)
-  }
-  validate_string($smtp_listen)
-
-
 
   $_smtp_listen = $mailman ? {
     true    => '0.0.0.0',
@@ -140,11 +135,13 @@ class postfix (
     true  => "${alias_maps}, ldap:/etc/postfix/ldap-aliases.cf",
   }
 
-  anchor { 'postfix::begin': } ->
-  class { '::postfix::packages': } ->
-  class { '::postfix::files': } ~>
-  class { '::postfix::service': } ->
-  anchor { 'posfix::end': }
+  create_resources('::postfix::config', $configs)
+
+  anchor { 'postfix::begin': }
+  -> class { '::postfix::packages': }
+  -> class { '::postfix::files': }
+  ~> class { '::postfix::service': }
+  -> anchor { 'postfix::end': }
 
   if $ldap {
     include ::postfix::ldap

@@ -3,3 +3,29 @@
   acceptance:
     - '*'
   forge_password: "XAv4O363tng0KuRnu1ZhhwORy+2CF9UQwdwlFmS+NG9jOaTZZN+PMK8iC7OSIvZN6cfKlYjHRHNuxFBnYlnMrLsM9fVxt4NjjznOgIKQpQDleWk4UitZj5ntyHmUtYtofUd5Bhi/sdYXwGN9pVRCrcfFBmsIRq/dOhXD7Wy5KcQ="
+  allow_failures:
+  # Exim is not properly stopped on these OSes, which makes the run non
+  # idempotent
+  - rvm: default
+    sudo: required
+    services: docker
+    env:
+      - PUPPET_INSTALL_TYPE=agent
+      - BEAKER_IS_PE=no
+      - BEAKER_PUPPET_COLLECTION=puppet5
+      - BEAKER_debug=true
+      - BEAKER_setfile=debian6-64{hypervisor=docker}
+    bundler_args:
+    script: bundle exec rspec spec/acceptance/*_spec.rb
+  - rvm: default
+    sudo: required
+    services: docker
+    env:
+      - PUPPET_INSTALL_TYPE=agent
+      - BEAKER_IS_PE=no
+      - BEAKER_PUPPET_COLLECTION=puppet5
+      - BEAKER_debug=true
+      - BEAKER_setfile=debian7-64{hypervisor=docker}
+    bundler_args:
+    script: bundle exec rspec spec/acceptance/*_spec.rb
+

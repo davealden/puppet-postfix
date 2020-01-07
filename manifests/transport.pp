@@ -35,18 +35,12 @@
 #   }
 #
 define postfix::transport (
-  $destination=undef,
-  $nexthop=undef,
-  $file='/etc/postfix/transport',
-  $ensure='present'
+  Optional[String]          $destination = undef,
+  Optional[String]          $nexthop=undef,
+  Stdlib::Absolutepath      $file='/etc/postfix/transport',
+  Enum['present', 'absent'] $ensure='present'
 ) {
   include ::postfix::augeas
-
-  validate_string($destination)
-  validate_string($nexthop)
-  validate_string($file)
-  validate_absolute_path($file)
-  validate_string($ensure)
 
   case $ensure {
     'present': {
@@ -82,10 +76,14 @@ define postfix::transport (
     lens    => 'Postfix_Transport.lns',
     incl    => $file,
     changes => $changes,
-    require => [
-      Package['postfix'],
-      Augeas::Lens['postfix_transport'],
-      ],
-    notify  => Postfix::Hash['/etc/postfix/transport'],
+    require => Augeas::Lens['postfix_transport'],
+  }
+
+  if defined(Package['postfix']) {
+    Package['postfix'] -> Postfix::Transport[$title]
+  }
+
+  if defined(Postfix::Hash['/etc/postfix/transport']) {
+    Postfix::Transport[$title] ~> Postfix::Hash['/etc/postfix/transport']
   }
 }

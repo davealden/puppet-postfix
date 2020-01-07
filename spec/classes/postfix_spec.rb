@@ -18,6 +18,7 @@ describe 'postfix' do
         it { is_expected.to contain_postfix__config('myorigin').with_value('foo.example.com') }
         it { is_expected.to contain_postfix__config('alias_maps').with_value('hash:/etc/aliases') }
         it { is_expected.to contain_postfix__config('inet_interfaces').with_value('all') }
+        it { is_expected.to contain_postfix__config('inet_protocols').with_value('all') }
         it { is_expected.to contain_mailalias('root').with_recipient('nobody') }
 
         case facts[:osfamily]
@@ -44,6 +45,15 @@ describe 'postfix' do
           it { is_expected.to contain_postfix__config('mailq_path') }
 
           case facts[:operatingsystemmajrelease]
+          when '8'
+            it { is_expected.to contain_file('/etc/aliases').with_seltype('etc_aliases_t').with_content("# file managed by puppet\n") }
+            it {
+              is_expected.to contain_service('postfix').with(
+                :ensure    => 'running',
+                :enable    => 'true',
+                :hasstatus => 'true',
+                :restart   => '/bin/systemctl reload postfix'
+              ) }
           when '7'
             it { is_expected.to contain_file('/etc/aliases').with_seltype('etc_aliases_t').with_content("# file managed by puppet\n") }
             it {
@@ -213,7 +223,7 @@ describe 'postfix' do
               end
             end
           end
-          context 'when specifying mydesitination' do
+          context 'when specifying mydestination' do
             it 'should do stuff' do
               skip 'need to write this still'
             end
@@ -299,6 +309,16 @@ describe 'postfix' do
             let(:params) { { :manage_mailx => false } }
             it 'should not have mailx package' do
               is_expected.not_to contain_package('mailx')
+            end
+          end
+          context 'when config hash is used' do
+            let (:params) { {
+              :configs => {
+                'message_size_limit' => {
+                  'value' => '51200000'
+              } } } }
+            it 'should update master.cf with the specified contents' do
+              is_expected.to contain_postfix__config('message_size_limit').with_value('51200000')
             end
           end
         end
